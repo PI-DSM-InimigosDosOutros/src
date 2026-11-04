@@ -6,9 +6,11 @@ const app = express();
 app.use(express.json());
 
 const authRoutes = require('./routes/tokenPreRoutes');
+const userAuthRoutes = require('./routes/authRoutes');
 const workoutRoutes = require('./routes/workoutRoutes');
 
 app.use('/api', authRoutes);
+app.use('/api', userAuthRoutes);
 app.use('/api', workoutRoutes);
 
 app.get('/', (req, res) => {
