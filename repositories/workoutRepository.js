@@ -1,6 +1,4 @@
 const db = require('../config/database');
-const ai = require ('servic')
-
 
 // o usuario sempre deve ter no minimo 1 exericio do dia, gerado após o cadastro
 const dailyWorkoutQuery = `
