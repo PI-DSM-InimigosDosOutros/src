@@ -6,12 +6,12 @@ const workoutService = {
             throw { status: 400, message: 'User ID not identified.' };
         }
 
-        const currentDate = new Date().toLocaleDateString('en-CA'); 
+        const currentDate = new Date().toLocaleDateString('pt-BR'); 
 
         const workoutData = await workoutRepository.getDailyWorkoutByUserId(userId, currentDate);
 
         if (!workoutData) {
-            throw { status: 404, message: 'No workout found for today.' };
+            throw { status: 404, message: 'Error in the creation of daily workout, please try again later.' };
         }
 
         return workoutData;
