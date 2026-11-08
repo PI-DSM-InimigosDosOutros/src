@@ -1,5 +1,12 @@
 require('dotenv').config();
 
+const required = ['GEMINI_API_KEY'];
+for (const name of required) {
+    if (!process.env[name]) {
+        throw new Error(`Variável de ambiente ${name} não definida. Verifique o .env`);
+    }
+}
+
 const express = require('express');
 const app = express();
 
@@ -22,6 +29,7 @@ app.get('/', (req, res) => {
     });
 });
 
-
-const PORT = process.env.PORT;
-app.listen(PORT, () => {});
+const PORT = process.env.PORT || 3000;
+app.listen(PORT, () => {
+    console.log(`Servidor rodando na porta ${PORT}`);
+});
