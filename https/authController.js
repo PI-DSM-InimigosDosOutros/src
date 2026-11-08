@@ -19,21 +19,6 @@ const authController = {
             return handleError(res, error);
         }
     },
-
-    register: async (req, res) => {
-        try {
-            const result = await authService.register(req.body || {});
-
-            return res.status(201).json({
-                success: true,
-                message: 'User registered successfully.',
-                data: result
-            });
-        } catch (error) {
-            return handleError(res, error);
-        }
-    },
-
     login: async (req, res) => {
         try {
             const result = await authService.login(req.body || {});
@@ -47,33 +32,6 @@ const authController = {
             return handleError(res, error);
         }
     },
-
-    forgotPassword: async (req, res) => {
-        try {
-            const { email } = req.body || {};
-            const result = await authService.forgotPassword(email);
-
-            return res.status(200).json({
-                success: true,
-                message: result.message
-            });
-        } catch (error) {
-            return handleError(res, error);
-        }
-    },
-
-    resetPassword: async (req, res) => {
-        try {
-            const result = await authService.resetPassword(req.body || {});
-
-            return res.status(200).json({
-                success: true,
-                message: result.message
-            });
-        } catch (error) {
-            return handleError(res, error);
-        }
-    }
 };
 
 module.exports = authController;
