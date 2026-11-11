@@ -5,3 +5,6 @@
 - `POST /api/auth/login` — Autentica com e-mail e senha e retorna o token JWT.
 - `POST /api/auth/forgot-password` — Envia por e-mail o link de recuperação de senha (válido por 15 min).
 - `POST /api/auth/reset-password` — Redefine a senha usando o token recebido por e-mail.
+- `POST /api/workout/start` — Inicia a sessão de treino.
+- `POST /api/workout/progress` — Marca o exercício atual como concluído e exibe o próximo exercício.
+- `POST /api/workout/finish` — Encerra a sessão de treino e retorna o resumo.

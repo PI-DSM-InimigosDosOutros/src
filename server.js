@@ -1,12 +1,5 @@
 require('dotenv').config();
 
-const required = ['GEMINI_API_KEY'];
-for (const name of required) {
-    if (!process.env[name]) {
-        throw new Error(`Variável de ambiente ${name} não definida. Verifique o .env`);
-    }
-}
-
 const express = require('express');
 const app = express();
 const cors = require('cors');
