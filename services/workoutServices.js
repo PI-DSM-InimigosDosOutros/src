@@ -1,6 +1,22 @@
 const workoutRepository = require('../repositories/workoutRepository');
+const { getAI, createWorkout } = require('./aiServices');
 
 const workoutService = {
+
+    ensureDailyWorkout: async (userId, date) => {
+        const existing = await workoutRepository.findDailyWorkout(userId, date);
+        if (existing) return; //já existe treino
+
+        const preferences = await workoutRepository.getPreferences(userId);
+        if (!preferences) throw { status: 404, message: 'User preferences not found.' };
+
+        const catalog = await workoutRepository.getCatalog();
+
+        const exercises = await getAI(() => createWorkout(preferences, catalog));
+
+        await workoutRepository.createDailyWorkoutWithExercises(userId, date, exercises);
+    },
+
     getWodForUser: async (userId) => {
         const currentDate = new Date().toLocaleDateString('en-CA');
         const workoutData = await workoutRepository.getDailyWorkoutByUserId(userId, currentDate);
@@ -16,8 +32,9 @@ const workoutService = {
         const currentDate = new Date().toLocaleDateString('en-CA');
         const workoutData = await workoutRepository.getDailyWorkoutByUserId(userId, currentDate);
 
+        const workoutData = await workoutRepository.getDailyWorkoutByUserId(userId, currentDate);
         if (!workoutData) {
-            throw { status: 404, message: 'No workout found for today.' };
+            throw { status: 404, message: 'Error in the creation of daily workout, please try again later.' };
         }
 
         return {
