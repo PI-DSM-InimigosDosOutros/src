@@ -18,6 +18,7 @@ const authService = {
             { 
                 id: user.id, 
                 email: user.email, 
+                name: `${user.firstName} ${user.lastName}`
             },
             SECRET_KEY,
             { expiresIn: '1h' }
