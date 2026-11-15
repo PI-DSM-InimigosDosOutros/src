@@ -13,8 +13,7 @@ const transporter = nodemailer.createTransport({
 const mailService = {
     sendPasswordResetEmail: async (to, firstName, resetLink) => {
         if (!process.env.SMTP_HOST) {
-            console.log(`[DEV] Password reset link for ${to}: ${resetLink}`);
-            return;
+            throw new Error('SMTP não configurado.');
         }
 
         await transporter.sendMail({

@@ -32,7 +32,8 @@ const userRepository = {
         return rows[0] || null;
     },
 
-    createWithLogin: async ({ firstName, lastName, birthDate, gender, email, passwordHash }) => {
+    createWithLogin: async (profile) => {
+        const { firstName, lastName, birthDate, gender, email, passwordHash } = profile;
         const connection = await db.getConnection();
 
         try {
@@ -48,6 +49,8 @@ const userRepository = {
                 `INSERT INTO UserLogin (IdUser, Email, PasswordHash) VALUES (?, ?, ?);`,
                 [userId, email, passwordHash]
             );
+
+            await require('./profileRepository').writeProfile(connection, userId, profile);
 
             await connection.commit();
 

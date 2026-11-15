@@ -19,7 +19,7 @@ const authMiddleware = (req, res, next) => {
     }
 
     jwt.verify(token, SECRET_KEY, (err, decoded) => {
-        if (err) {
+        if (err || !Number.isSafeInteger(decoded?.id) || decoded.id < 1) {
             return res.status(401).json({ success: false, error: 'Invalid or expired token.' });
         }
 

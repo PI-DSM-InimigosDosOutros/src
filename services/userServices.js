@@ -5,87 +5,33 @@ const bcrypt = require('bcryptjs');
 const jwt = require('jsonwebtoken');
 const SECRET_KEY = process.env.JWT_SECRET;
 
+const validation = require('./validation');
 const SALT_ROUNDS = 10;
-const EMAIL_REGEX = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
-const DUMMY_HASH = bcrypt.hashSync('dummy-password', SALT_ROUNDS);
-
-const normalizeEmail = (email) => String(email || '').trim().toLowerCase();
-
-const validatePassword = (password) => {
-    if (!password || typeof password !== 'string' || password.length < 8) {
-        throw { status: 400, message: 'Password must have at least 8 characters.' };
-    }
-};
-
-const signAuthToken = (user) => {
-    return jwt.sign(
-        { id: user.id, email: user.email },
-        SECRET_KEY,
-        { expiresIn: '1h' }
-    );
-};
 
 const userService = {
 
-    register: async ({ firstName, lastName, birthDate, gender, email, password }) => {
-        const normalizedEmail = normalizeEmail(email);
+    register: async (input) => {
+        const profile = validation.profile(input);
+        validation.password(input.password);
+        if (!process.env.JWT_SECRET) validation.fail('Autenticação indisponível.', 503);
+        const passwordHash = await bcrypt.hash(input.password, SALT_ROUNDS);
+        const newUser = await userRepository.createWithLogin({ ...profile, passwordHash });
+        return { token: authService.signAuthToken(newUser), user: newUser };
+    },
 
-        if (!firstName || !lastName || !birthDate || !gender || !normalizedEmail || !password) {
-            throw { status: 400, message: 'firstName, lastName, birthDate, gender, email and password are required.' };
-        }
-
-        if (!EMAIL_REGEX.test(normalizedEmail)) {
-            throw { status: 400, message: 'Invalid email format.' };
-        }
-
-        if (String(gender).trim().length !== 1) {
-            throw { status: 400, message: 'Gender must be a single character.' };
-        }
-
-        const parsedDate = new Date(birthDate);
-        if (!/^\d{4}-\d{2}-\d{2}$/.test(birthDate) || isNaN(parsedDate.getTime()) || parsedDate > new Date()) {
-            throw { status: 400, message: 'birthDate must be a valid past date in the format YYYY-MM-DD.' };
-        }
-
-        validatePassword(password);
-
-        const existingUser = await userRepository.findByEmail(normalizedEmail);
-        if (existingUser) {
-            throw { status: 409, message: 'Email already registered.' };
-        }
-
-        const passwordHash = await bcrypt.hash(password, SALT_ROUNDS);
-
-        let newUser;
-        try {
-            newUser = await userRepository.createWithLogin({
-                firstName: String(firstName).trim(),
-                lastName: String(lastName).trim(),
-                birthDate,
-                gender: String(gender).trim().toUpperCase(),
-                email: normalizedEmail,
-                passwordHash
-            });
-        } catch (error) {
-            if (error.code === 'ER_DUP_ENTRY') {
-                throw { status: 409, message: 'Email already registered.' };
-            }
-            throw error;
-        }
-
-        return {
-            token: signAuthToken(newUser),
-            user: {
-                id: newUser.id,
-                firstName: newUser.firstName,
-                lastName: newUser.lastName,
-                email: newUser.email
-            }
-        };
+    getProfile: userId => require('../repositories/profileRepository').getProfile(userId),
+    updateProfile: (userId, input) => require('../repositories/profileRepository').update(userId, input),
+    changePassword: async (userId, { currentPassword, newPassword }) => {
+        validation.password(newPassword);
+        const login = await userRepository.findLoginById(userId);
+        if (!login || typeof currentPassword !== 'string' || !await bcrypt.compare(currentPassword, login.passwordHash)) validation.fail('Senha atual incorreta.', 400);
+        await userRepository.updatePasswordByUserId(userId, await bcrypt.hash(newPassword, SALT_ROUNDS));
+        return { message: 'Senha atualizada.' };
     },
 
     forgotPassword: async (email) => {
-        const normalizedEmail = normalizeEmail(email);
+        const normalizedEmail = validation.email(email);
+        if (!process.env.SMTP_HOST || !process.env.FRONTEND_URL || !process.env.JWT_SECRET) validation.fail('Recuperação de acesso indisponível no momento.', 503);
 
         if (!normalizedEmail) {
             throw { status: 400, message: 'Email is required.' };
@@ -105,7 +51,8 @@ const userService = {
             try {
                 await mailService.sendPasswordResetEmail(user.email, user.firstName, resetLink);
             } catch (error) {
-                console.error('Erro ao enviar e-mail de recuperação:', error.message);
+                console.error('Falha no envio de recuperação.');
+                validation.fail('Não foi possível enviar as instruções de recuperação.', 503);
             }
         }
 
@@ -113,11 +60,12 @@ const userService = {
     },
 
     resetPassword: async ({ token, newPassword }) => {
+        if (!process.env.JWT_SECRET) validation.fail('Recuperação de acesso indisponível.', 503);
         if (!token || !newPassword) {
             throw { status: 400, message: 'Token and newPassword are required.' };
         }
 
-        validatePassword(newPassword);
+        validation.password(newPassword);
 
         const invalidTokenError = { status: 400, message: 'Invalid or expired recovery token.' };
 

@@ -1,0 +1,10 @@
+const express = require('express');
+const app = express();
+app.use(require('cors')());
+app.use(express.json({ limit: '100kb' }));
+app.use('/api', require('./routes/tokenPreRoutes'));
+app.use('/api', require('./routes/authRoutes'));
+app.use('/api', require('./routes/workoutRoutes'));
+app.use('/api', require('./routes/userRoutes'));
+app.get('/', (req, res) => res.json({ success: true, message: 'WorkIn API' }));
+module.exports = app;

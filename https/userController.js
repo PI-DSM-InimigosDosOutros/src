@@ -1,53 +1,10 @@
-const userService = require('../services/userServices');
-
-const handleError = (res, error) => {
-    return res.status(error.status || 500).json({
-        success: false,
-        error: error.message || 'Internal server error.'
-    });
+const service = require('../services/userServices');
+const respond = require('./respond');
+module.exports = {
+    register: (req, res) => respond(res, () => service.register(req.body || {}), 201),
+    getProfile: (req, res) => respond(res, () => service.getProfile(req.userId)),
+    updateProfile: (req, res) => respond(res, () => service.updateProfile(req.userId, req.body || {})),
+    changePassword: (req, res) => respond(res, () => service.changePassword(req.userId, req.body || {})),
+    forgotPassword: (req, res) => respond(res, () => service.forgotPassword(req.body?.email)),
+    resetPassword: (req, res) => respond(res, () => service.resetPassword(req.body || {})),
 };
-
-const userController = {
-    register: async (req, res) => {
-        try {
-            const result = await userService.register(req.body || {});
-
-            return res.status(201).json({
-                success: true,
-                message: 'User registered successfully.',
-                data: result
-            });
-        } catch (error) {
-            return handleError(res, error);
-        }
-    },
-
-    forgotPassword: async (req, res) => {
-        try {
-            const { email } = req.body || {};
-            const result = await userService.forgotPassword(email);
-
-            return res.status(200).json({
-                success: true,
-                message: result.message
-            });
-        } catch (error) {
-            return handleError(res, error);
-        }
-    },
-
-    resetPassword: async (req, res) => {
-        try {
-            const result = await userService.resetPassword(req.body || {});
-
-            return res.status(200).json({
-                success: true,
-                message: result.message
-            });
-        } catch (error) {
-            return handleError(res, error);
-        }
-    }
-}
-
-module.exports = userController;

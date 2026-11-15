@@ -1,7 +1,7 @@
 const db = require('../config/database');
 
 const workoutRepository = {
-   getDailyWorkoutByUserId: async (userId, date) => {
+   getDailyWorkoutByUserId: async (userId, date, workoutId = null) => {
     const query = `
         SELECT 
             dw.IdDailyWorkout AS dailyworkoutid,
@@ -10,6 +10,7 @@ const workoutRepository = {
             dwe.ExerciseOrder AS exerciseorder,
             dwe.DurationEstimate AS durationestimate,
             dwe.Completed AS completed,
+            w.IdWorkout AS workoutid,
             w.Name AS workoutname,
             w.MuscleGroup AS musclegroup,
             w.GifUrl AS gifurl,
@@ -18,11 +19,12 @@ const workoutRepository = {
         LEFT JOIN DailyWorkoutExercise dwe ON dw.IdDailyWorkout = dwe.IdDailyWorkout
         LEFT JOIN Workout w ON dwe.IdWorkout = w.IdWorkout
         LEFT JOIN ExerciseCategory ec ON w.IdExerciseCategory = ec.IdExerciseCategory
-        WHERE dw.IdUser = ? AND DATE(dw.Date) = DATE(?)
+        WHERE dw.IdUser = ? AND dw.IdDailyWorkout = COALESCE(?,
+            (SELECT d.IdDailyWorkout FROM DailyWorkout d WHERE d.IdUser=? AND d.Date=? ORDER BY d.IdDailyWorkout DESC LIMIT 1))
         ORDER BY dwe.ExerciseOrder ASC;
     `;
 
-    const [rows] = await db.execute(query, [userId, date]);
+    const [rows] = await db.execute(query, [userId, workoutId, userId, date]);
     
 
     if (!rows || rows.length === 0) {
@@ -35,6 +37,7 @@ const workoutRepository = {
         .filter(row => row.exerciseorder !== null && row.exerciseorder !== undefined || row.ExerciseOrder !== null && row.ExerciseOrder !== undefined)
         .map(row => ({
             exerciseOrder: row.exerciseorder ?? row.ExerciseOrder,
+            workoutId: row.workoutid,
             durationEstimate: row.durationestimate ?? row.DurationEstimate,
             completed: row.completed ?? row.Completed,
             workoutName: row.workoutname ?? row.WorkoutName,
@@ -50,44 +53,23 @@ const workoutRepository = {
             exercises: exercises
         };
     },
-    markNextExerciseAsCompleted: async (dailyWorkoutId) => {
-    const [rows] = await db.execute(
-        `SELECT 
-            IdDailyWorkoutExercise AS iddailyworkoutexercise, 
-            ExerciseOrder AS exerciseorder 
-         FROM DailyWorkoutExercise 
-         WHERE IdDailyWorkout = ? AND (Completed = 0 OR Completed = FALSE) 
-         ORDER BY ExerciseOrder ASC 
-         LIMIT 1`,
-        [dailyWorkoutId]
-    );
-
-    if (!rows || rows.length === 0) {
-        return null;
-    }
-
-    const currentExercise = rows[0];
-    
-    const exerciseId = currentExercise.iddailyworkoutexercise ?? currentExercise.IdDailyWorkoutExercise;
-    const exerciseOrder = currentExercise.exerciseorder ?? currentExercise.ExerciseOrder;
-
-    await db.execute(
-        `UPDATE DailyWorkoutExercise 
-         SET Completed = 1 
-         WHERE IdDailyWorkoutExercise = ?`,
-        [exerciseId]
-    );
-
-    return exerciseOrder;
-},
-
-    finishDailyWorkout: async (dailyWorkoutId) => {
-        await db.execute(
-            `UPDATE DailyWorkout 
-             SET TotalDuration = TotalDuration 
-             WHERE IdDailyWorkout = ?`,
-            [dailyWorkoutId]
-        );
+    create: async (userId, date, exercises, expectedProfile) => require('./transaction')(async connection => {
+        const { fail } = require('../services/validation');
+        await connection.execute('SELECT IdUser FROM User WHERE IdUser=? FOR UPDATE', [userId]);
+        if (await require('./sessionRepository').active(userId, connection)) fail('Encerre o treino em andamento antes de criar outro.', 409);
+        const current = await require('./profileRepository').getProfile(userId, connection);
+        if (JSON.stringify(current) !== JSON.stringify(expectedProfile)) fail('Seu perfil mudou. Solicite novamente a criação do treino.', 409);
+        const [result] = await connection.execute('INSERT INTO DailyWorkout (IdUser, Date, TotalDuration) VALUES (?, ?, ?)',
+            [userId, date, exercises.reduce((sum, item) => sum + item.DurationEstimate, 0)]);
+        for (const item of exercises) await connection.execute(`INSERT INTO DailyWorkoutExercise (IdDailyWorkout, IdWorkout, ExerciseOrder, DurationEstimate)
+            VALUES (?, ?, ?, ?)`, [result.insertId, item.IdWorkout, item.ExerciseOrder, item.DurationEstimate]);
+        return result.insertId;
+    }),
+    catalogue: async (categories) => {
+        const [rows] = await db.execute(`SELECT w.IdWorkout, w.Name, w.MuscleGroup, w.GifUrl, c.Name AS CategoryName
+            FROM Workout w JOIN ExerciseCategory c ON c.IdExerciseCategory=w.IdExerciseCategory
+            WHERE c.Name IN (${categories.map(() => '?').join(',')}) ORDER BY w.IdWorkout`, categories);
+        return rows;
     }
 };
 
