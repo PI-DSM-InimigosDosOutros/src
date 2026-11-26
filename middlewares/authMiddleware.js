@@ -1,4 +1,5 @@
 const jwt = require('jsonwebtoken');
+const tracer = require('dd-trace');
 const SECRET_KEY = process.env.JWT_SECRET;
 
 const authMiddleware = (req, res, next) => {
@@ -24,7 +25,8 @@ const authMiddleware = (req, res, next) => {
         }
 
         req.userId = decoded.id;
-        
+        tracer.scope().active()?.setTag('usr.id', String(decoded.id));
+
         return next();
     });
 };

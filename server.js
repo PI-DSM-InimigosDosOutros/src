@@ -1,4 +1,5 @@
 require('dotenv').config();
+require('dd-trace').init(); // Datadog: deve vir antes de express, mysql2 e demais requires
 
 const required = ['GEMINI_API_KEY'];
 for (const name of required) {

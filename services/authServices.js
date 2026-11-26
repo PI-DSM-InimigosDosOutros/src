@@ -10,6 +10,8 @@ const DUMMY_HASH = bcrypt.hashSync('dummy-password', SALT_ROUNDS);
 
 const normalizeEmail = (email) => String(email || '').trim().toLowerCase();
 
+const tracer = require('dd-trace');
+
 const validatePassword = (password) => {
     if (!password || typeof password !== 'string' || password.length < 8) {
         throw { status: 400, message: 'Password must have at least 8 characters.' };
@@ -108,6 +110,7 @@ const authService = {
     },
 
     login: async ({ email, password }) => {
+        const span = tracer.scope().active();
         const normalizedEmail = normalizeEmail(email);
 
         if (!normalizedEmail || !password) {
@@ -119,8 +122,11 @@ const authService = {
         const passwordMatches = await bcrypt.compare(String(password), user ? user.passwordHash : DUMMY_HASH);
 
         if (!user || !passwordMatches) {
+            span?.setTag('auth.login_failed', true);
             throw { status: 401, message: 'Invalid email or password.' };
         }
+
+        span?.setTag('auth.login_failed', false);
 
         return {
             token: signAuthToken(user),

@@ -1,0 +1,55 @@
+{
+  "title": "Fitness Backend - Observabilidade",
+  "description": "Requisições, erros, latência e treinos gerados pelo backend.",
+  "layout_type": "ordered",
+  "widgets": [
+    {
+      "definition": {
+        "type": "timeseries",
+        "title": "Requisições HTTP",
+        "requests": [
+          {
+            "q": "sum:trace.web.request.hits{service:fitness-backend}.as_count()",
+            "display_type": "line"
+          }
+        ]
+      }
+    },
+    {
+      "definition": {
+        "type": "timeseries",
+        "title": "Erros HTTP",
+        "requests": [
+          {
+            "q": "sum:trace.web.request.errors{service:fitness-backend}.as_count()",
+            "display_type": "line"
+          }
+        ]
+      }
+    },
+    {
+      "definition": {
+        "type": "timeseries",
+        "title": "Latência p95 das requisições",
+        "requests": [
+          {
+            "q": "p95:trace.web.request.duration{service:fitness-backend}",
+            "display_type": "line"
+          }
+        ]
+      }
+    },
+    {
+      "definition": {
+        "type": "timeseries",
+        "title": "Treinos gerados",
+        "requests": [
+          {
+            "q": "sum:fitness.workout.generated{service:fitness-backend}.as_count()",
+            "display_type": "bars"
+          }
+        ]
+      }
+    }
+  ]
+}

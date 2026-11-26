@@ -1,20 +1,35 @@
+const tracer = require('dd-trace');
 const workoutRepository = require('../repositories/workoutRepository');
 const { getAI, createWorkout } = require('./aiServices');
 
 const workoutService = {
 
     ensureDailyWorkout: async (userId, date) => {
-        const existing = await workoutRepository.findDailyWorkout(userId, date);
-        if (existing) return; //já existe treino
+        return tracer.trace('workout.ensureDaily', async (span) => {
+            span?.setTag('workout.date', date);
 
-        const preferences = await workoutRepository.getPreferences(userId);
-        if (!preferences) throw { status: 404, message: 'User preferences not found.' };
+            const existing = await workoutRepository.findDailyWorkout(userId, date);
+            if (existing) {
+                span?.setTag('workout.generated', false);
+                return; //já existe treino
+            }
 
-        const catalog = await workoutRepository.getCatalog();
+            const preferences = await workoutRepository.getPreferences(userId);
+            if (!preferences) throw { status: 404, message: 'User preferences not found.' };
 
-        const exercises = await getAI(() => createWorkout(preferences, catalog));
+            const catalog = await workoutRepository.getCatalog();
+            span?.setTag('workout.catalog_size', catalog.length);
 
-        await workoutRepository.createDailyWorkoutWithExercises(userId, date, exercises);
+            const exercises = await getAI(() => createWorkout(preferences, catalog));
+            span?.setTag('workout.exercise_count', exercises.length);
+
+            const workoutId = await workoutRepository.createDailyWorkoutWithExercises(userId, date, exercises);
+            const generated = Boolean(workoutId);
+            span?.setTag('workout.generated', generated);
+            if (generated) {
+                tracer.dogstatsd.increment('fitness.workout.generated');
+            }
+        });
     },
 
     getWodForUser: async (userId) => {
