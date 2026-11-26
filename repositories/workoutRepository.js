@@ -1,98 +1,94 @@
 const db = require('../config/database');
 
-// o usuario sempre deve ter no minimo 1 exericio do dia, gerado após o cadastro
-const dailyWorkoutQuery = `
-            SELECT IdDailyWorkout, Date, TotalDuration 
-            FROM DailyWorkout 
-            WHERE IdUser = ? AND Date = ?
-            LIMIT 1;
-        `;
-
-const exercisesQuery = `
-            SELECT 
-                dwe.ExerciseOrder AS exerciseOrder,
-                dwe.DurationEstimate AS durationEstimate,
-                dwe.Completed AS completed,
-                w.Name AS workoutName,
-                w.MuscleGroup AS muscleGroup,
-                w.GifUrl AS gifUrl,
-                ec.Name AS categoryName
-            FROM DailyWorkoutExercise dwe
-            JOIN Workout w ON dwe.IdWorkout = w.IdWorkout
-            JOIN ExerciseCategory ec ON w.IdExerciseCategory = ec.IdExerciseCategory
-            WHERE dwe.IdDailyWorkout = ?
-            ORDER BY dwe.ExerciseOrder ASC;
-        `;
-
 const workoutRepository = {
+   getDailyWorkoutByUserId: async (userId, date) => {
+    const query = `
+        SELECT 
+            dw.IdDailyWorkout AS dailyworkoutid,
+            dw.Date AS date,
+            dw.TotalDuration AS totaldurationminutes,
+            dwe.ExerciseOrder AS exerciseorder,
+            dwe.DurationEstimate AS durationestimate,
+            dwe.Completed AS completed,
+            w.Name AS workoutname,
+            w.MuscleGroup AS musclegroup,
+            w.GifUrl AS gifurl,
+            ec.Name AS categoryname
+        FROM DailyWorkout dw
+        LEFT JOIN DailyWorkoutExercise dwe ON dw.IdDailyWorkout = dwe.IdDailyWorkout
+        LEFT JOIN Workout w ON dwe.IdWorkout = w.IdWorkout
+        LEFT JOIN ExerciseCategory ec ON w.IdExerciseCategory = ec.IdExerciseCategory
+        WHERE dw.IdUser = ? AND DATE(dw.Date) = DATE(?)
+        ORDER BY dwe.ExerciseOrder ASC;
+    `;
 
-    findDailyWorkout: async (userId, date) => {
-        const [rows] = await db.execute(dailyWorkoutQuery, [userId, date]);
-        return rows[0] || null;
-    },
+    const [rows] = await db.execute(query, [userId, date]);
+    
 
-    getPreferences: async (userId) => {
-        const [[row]] = await db.execute(
-            'SELECT * FROM UserPreferences WHERE IdUser = ?', [userId]
-        );
-        return row || null;
-    },
+    if (!rows || rows.length === 0) {
+        return null;
+    }
 
-    getCatalog: async () => {
-        const [rows] = await db.execute('SELECT IdWorkout, Name, MuscleGroup FROM Workout');
-        return rows;
-    },
+    const firstRow = rows[0];
 
-    // cria o DailyWorkout e os exercícios juntos: tudo ou nada
-    createDailyWorkoutWithExercises: async (userId, date, exercises) => {
-        const connection = await db.getConnection();
-        try {
-            await connection.beginTransaction();
-
-            const [result] = await connection.execute(
-                `INSERT INTO DailyWorkout (IdUser, Date, TotalDuration)
-                 SELECT ?, ?, up.FreeTimePerDay
-                 FROM UserPreferences up
-                 WHERE up.IdUser = ?`,
-                [userId, date, userId]
-            );
-            if (result.affectedRows === 0) throw new Error('Preferências do usuário não encontradas');
-
-            const idDailyWorkout = result.insertId;
-
-            for (const { IdWorkout, ExerciseOrder, DurationEstimate } of exercises) {
-                await connection.execute(
-                    `INSERT INTO DailyWorkoutExercise
-                        (IdDailyWorkout, IdWorkout, ExerciseOrder, DurationEstimate)
-                     VALUES (?, ?, ?, ?)`,
-                    [idDailyWorkout, IdWorkout, ExerciseOrder, DurationEstimate]
-                );
-            }
-
-            await connection.commit();
-            return idDailyWorkout;
-        } catch (error) {
-            await connection.rollback();
-            if (error.code === 'ER_DUP_ENTRY') return null; // outra requisição criou primeiro
-            throw error;
-        } finally {
-            connection.release();
-        }
-    },
-
-    getDailyWorkoutByUserId: async (userId, date) => {
-        const dailyWorkout = await workoutRepository.findDailyWorkout(userId, date);
-        if (!dailyWorkout) return null;
-
-        const [exercises] = await db.execute(exercisesQuery, [dailyWorkout.IdDailyWorkout]);
+    const exercises = rows
+        .filter(row => row.exerciseorder !== null && row.exerciseorder !== undefined || row.ExerciseOrder !== null && row.ExerciseOrder !== undefined)
+        .map(row => ({
+            exerciseOrder: row.exerciseorder ?? row.ExerciseOrder,
+            durationEstimate: row.durationestimate ?? row.DurationEstimate,
+            completed: row.completed ?? row.Completed,
+            workoutName: row.workoutname ?? row.WorkoutName,
+            muscleGroup: row.musclegroup ?? row.MuscleGroup,
+            gifUrl: row.gifurl ?? row.GifUrl,
+            categoryName: row.categoryname ?? row.CategoryName
+        }));
 
         return {
-            dailyWorkoutId: dailyWorkout.IdDailyWorkout,
-            date: dailyWorkout.Date,
-            totalDurationMinutes: dailyWorkout.TotalDuration,
-            exercises,
+            dailyWorkoutId: firstRow.dailyworkoutid ?? firstRow.DailyWorkoutId,
+            date: firstRow.date ?? firstRow.Date,
+            totalDurationMinutes: firstRow.totaldurationminutes ?? firstRow.TotalDurationMinutes,
+            exercises: exercises
         };
     },
+    markNextExerciseAsCompleted: async (dailyWorkoutId) => {
+    const [rows] = await db.execute(
+        `SELECT 
+            IdDailyWorkoutExercise AS iddailyworkoutexercise, 
+            ExerciseOrder AS exerciseorder 
+         FROM DailyWorkoutExercise 
+         WHERE IdDailyWorkout = ? AND (Completed = 0 OR Completed = FALSE) 
+         ORDER BY ExerciseOrder ASC 
+         LIMIT 1`,
+        [dailyWorkoutId]
+    );
+
+    if (!rows || rows.length === 0) {
+        return null;
+    }
+
+    const currentExercise = rows[0];
+    
+    const exerciseId = currentExercise.iddailyworkoutexercise ?? currentExercise.IdDailyWorkoutExercise;
+    const exerciseOrder = currentExercise.exerciseorder ?? currentExercise.ExerciseOrder;
+
+    await db.execute(
+        `UPDATE DailyWorkoutExercise 
+         SET Completed = 1 
+         WHERE IdDailyWorkoutExercise = ?`,
+        [exerciseId]
+    );
+
+    return exerciseOrder;
+},
+
+    finishDailyWorkout: async (dailyWorkoutId) => {
+        await db.execute(
+            `UPDATE DailyWorkout 
+             SET TotalDuration = TotalDuration 
+             WHERE IdDailyWorkout = ?`,
+            [dailyWorkoutId]
+        );
+    }
 };
 
 module.exports = workoutRepository;

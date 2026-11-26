@@ -1,8 +1,10 @@
 const tracer = require('dd-trace');
 const workoutRepository = require('../repositories/workoutRepository');
-const { getAI, createWorkout } = require('./aiServices');
 
 const workoutService = {
+    getWodForUser: async (userId) => {
+        const currentDate = new Date().toLocaleDateString('en-CA');
+        const workoutData = await workoutRepository.getDailyWorkoutByUserId(userId, currentDate);
 
     ensureDailyWorkout: async (userId, date) => {
         return tracer.trace('workout.ensureDaily', async (span) => {
@@ -30,22 +32,83 @@ const workoutService = {
                 tracer.dogstatsd.increment('fitness.workout.generated');
             }
         });
-    },
-
-    getWodForUser: async (userId) => {
-        if (!userId) throw { status: 400, message: 'User ID not identified.' };
-
-        const currentDate = new Date().toLocaleDateString('sv-SE', { timeZone: 'America/Sao_Paulo' });
-
-        await workoutService.ensureDailyWorkout(userId, currentDate);
-
-        const workoutData = await workoutRepository.getDailyWorkoutByUserId(userId, currentDate);
         if (!workoutData) {
-            throw { status: 404, message: 'Error in the creation of daily workout, please try again later.' };
+            throw { status: 404, message: 'No workout found for today.' };
         }
 
         return workoutData;
     },
+
+    startWorkout: async (userId) => {
+        const currentDate = new Date().toLocaleDateString('en-CA');
+        const workoutData = await workoutRepository.getDailyWorkoutByUserId(userId, currentDate);
+
+        if (!workoutData) {
+            throw { status: 404, message: 'No workout found for today.' };
+        }
+
+        return {
+            message: 'Workout session started successfully.',
+            dailyWorkoutId: workoutData.dailyWorkoutId,
+            totalDurationMinutes: workoutData.totalDurationMinutes,
+            firstExercise: (workoutData.exercises && workoutData.exercises.length > 0) ? workoutData.exercises[0] : null
+        };
+    },
+
+    updateProgress: async (userId) => {
+
+    const currentDate = new Date().toLocaleDateString('en-CA');
+    const workoutData = await workoutRepository.getDailyWorkoutByUserId(userId, currentDate);
+
+    if (!workoutData) {
+        throw { status: 404, message: 'No active workout session found for today.' };
+    }
+
+    const dailyWorkoutId = workoutData.dailyWorkoutId;
+    const completedOrder = await workoutRepository.markNextExerciseAsCompleted(dailyWorkoutId);
+
+    if (completedOrder === null) {
+        return {
+            message: 'All exercises are already completed.',
+            isFinished: true,
+            nextExercise: null
+        };
+    }
+
+    const updatedWorkoutData = await workoutRepository.getDailyWorkoutByUserId(userId, currentDate);
+    const nextExercise = updatedWorkoutData.exercises.find(ex => ex.completed === 0 || ex.completed === false) || null;
+    const isFinished = nextExercise === null;
+
+    return {
+        message: `Exercise order ${completedOrder} marked as completed.`,
+        isFinished,
+        nextExercise
+    };
+},
+
+    finishWorkout: async (userId) => {
+        const currentDate = new Date().toLocaleDateString('en-CA');
+        const workoutData = await workoutRepository.getDailyWorkoutByUserId(userId, currentDate);
+
+        if (!workoutData) {
+            throw { status: 404, message: 'No workout session found for today.' };
+        }
+
+        await workoutRepository.finishDailyWorkout(workoutData.dailyWorkoutId);
+        
+        const updatedWorkoutData = await workoutRepository.getDailyWorkoutByUserId(userId, currentDate);
+
+        return {
+            message: 'Workout finished successfully.',
+            summary: {
+                dailyWorkoutId: updatedWorkoutData?.dailyWorkoutId,
+                totalDurationMinutes: updatedWorkoutData?.totalDurationMinutes,
+                exercisesCompleted: updatedWorkoutData?.exercises.filter(ex => ex.completed === 1).length || 0,
+                totalExercises: updatedWorkoutData?.exercises.length || 0,
+                exercises: updatedWorkoutData?.exercises || []
+            }
+        };
+    }
 };
 
 module.exports = workoutService;

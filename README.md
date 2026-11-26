@@ -32,3 +32,6 @@ curl -X POST "https://api.${DD_SITE}/api/v1/dashboard" \
 
 O comando retorna o dashboard criado na sua conta. As chaves não são necessárias
 no frontend nem para a aplicação Node enviar telemetria ao Agent.
+- `POST /api/workout/start` — Inicia a sessão de treino.
+- `POST /api/workout/progress` — Marca o exercício atual como concluído e exibe o próximo exercício.
+- `POST /api/workout/finish` — Encerra a sessão de treino e retorna o resumo.

@@ -20,13 +20,13 @@ const mailService = {
         await transporter.sendMail({
             from: process.env.MAIL_FROM,
             to,
-            subject: 'Password recovery',
-            text: `Hello, ${firstName}! Use the link below to reset your password (valid for 15 minutes):\n\n${resetLink}\n\nIf you did not request this, just ignore this email.`,
+            subject: 'Redefinição de Senha',
+            text: `Olá, ${firstName}! Use o link abaixo para redefinir sua senha (válido por 15 minutos):\n\n${resetLink}\n\nIf you did not request this, just ignore this email.`,
             html: `
-                <p>Hello, ${firstName}!</p>
-                <p>Click the link below to reset your password (valid for 15 minutes):</p>
-                <p><a href="${resetLink}">Reset password</a></p>
-                <p>If you did not request this, just ignore this email.</p>
+                <p>Olá, ${firstName}!</p>
+                <p>Clique no link abaixo para redefinir sua senha (válido por 15 minutos):</p>
+                <p><a href="${resetLink}">Redefinir senha</a></p>
+                <p>Se você não solicitou isso, apenas ignore este email.</p>
             `
         });
     }
