@@ -1,0 +1,167 @@
+USE `pi-dms_db`;
+
+SET FOREIGN_KEY_CHECKS = 0;
+
+-- =====================================================
+-- 1. User
+-- =====================================================
+INSERT INTO `User` (`IdUser`, `FirstName`, `LastName`, `BirthDate`, `Gender`) VALUES
+(1,  'Fernanda', 'Lopes', '1998-03-14', 'F'),
+(2,  'Vinicius', 'Almeida',   '1995-07-22', 'M'),
+(3,  'Akemi',    'Obana',   '2000-11-05', 'F'),
+(4,  'Fink',     'da Silva',  '1997-01-30', 'M'),
+(5,  'Gustavo',  'Joia',  '1993-09-18', 'M'),
+(6,  'Mariana',  'Costa',    '2001-05-09', 'F'),
+(7,  'Rafael',   'Lima',     '1990-12-02', 'M'),
+(8,  'Beatriz',  'Souza',    '1999-08-27', 'F'),
+(9,  'Thiago',   'Ferreira', '1994-04-16', 'M'),
+(10, 'Camila',   'Rocha',    '2002-02-11', 'F');
+
+-- =====================================================
+-- 2. UserLogin (1:1)
+-- Senha de todos os usuários: 123123 (hash bcrypt, custo 10)
+-- =====================================================
+INSERT INTO `UserLogin` (`IdUser`, `Email`, `PasswordHash`) VALUES
+(1,  'fernanda@email.com', '$2b$10$JSf63GDRVzAz/ZVu/TZ8ieIIhyAicN39U6pEkUreSvUye.GlVCA46'),
+(2,  'vinicius@email.com', '$2b$10$JSf63GDRVzAz/ZVu/TZ8ieIIhyAicN39U6pEkUreSvUye.GlVCA46'),
+(3,  'akemi@email.com',    '$2b$10$JSf63GDRVzAz/ZVu/TZ8ieIIhyAicN39U6pEkUreSvUye.GlVCA46'),
+(4,  'fink@email.com',     '$2b$10$JSf63GDRVzAz/ZVu/TZ8ieIIhyAicN39U6pEkUreSvUye.GlVCA46'),
+(5,  'gustavo@email.com',  '$2b$10$JSf63GDRVzAz/ZVu/TZ8ieIIhyAicN39U6pEkUreSvUye.GlVCA46'),
+(6,  'mariana@email.com',  '$2b$10$JSf63GDRVzAz/ZVu/TZ8ieIIhyAicN39U6pEkUreSvUye.GlVCA46'),
+(7,  'rafael@email.com',   '$2b$10$JSf63GDRVzAz/ZVu/TZ8ieIIhyAicN39U6pEkUreSvUye.GlVCA46'),
+(8,  'beatriz@email.com',  '$2b$10$JSf63GDRVzAz/ZVu/TZ8ieIIhyAicN39U6pEkUreSvUye.GlVCA46'),
+(9,  'thiago@email.com',   '$2b$10$JSf63GDRVzAz/ZVu/TZ8ieIIhyAicN39U6pEkUreSvUye.GlVCA46'),
+(10, 'camila@email.com',   '$2b$10$JSf63GDRVzAz/ZVu/TZ8ieIIhyAicN39U6pEkUreSvUye.GlVCA46');
+
+-- =====================================================
+-- 3. Streak (1:1)
+-- =====================================================
+INSERT INTO `Streak` (`IdUser`, `CurrentStreak`, `LastWorkoutDate`) VALUES
+(1,  3,  CURDATE()),
+(2,  5,  CURDATE() - INTERVAL 1 DAY),
+(3,  2,  CURDATE() - INTERVAL 1 DAY),
+(4,  0,  NULL),
+(5,  1,  CURDATE()),
+(6,  0,  NULL),
+(7,  8,  CURDATE() - INTERVAL 1 DAY),
+(8,  0,  CURDATE() - INTERVAL 10 DAY),
+(9,  4,  CURDATE()),
+(10, 0,  NULL);
+
+-- =====================================================
+-- 4. UserMeasures (1:N - histórico; peso em kg, altura em cm)
+-- =====================================================
+INSERT INTO `UserMeasures` (`IdUser`, `Weight`, `Height`, `UpdateDate`) VALUES
+(1,  62.50, 165.00, NOW() - INTERVAL 60 DAY),
+(1,  61.20, 165.00, NOW() - INTERVAL 30 DAY),
+(1,  60.00, 165.00, NOW()),
+(2,  85.00, 178.00, NOW() - INTERVAL 45 DAY),
+(2,  83.40, 178.00, NOW()),
+(3,  55.30, 160.00, NOW()),
+(4,  78.00, 182.00, NOW()),
+(5,  92.00, 175.00, NOW() - INTERVAL 20 DAY),
+(5,  90.50, 175.00, NOW()),
+(6,  58.00, 168.00, NOW()),
+(7,  80.00, 180.00, NOW() - INTERVAL 90 DAY),
+(7,  76.80, 180.00, NOW()),
+(8,  67.00, 163.00, NOW()),
+(9,  88.00, 185.00, NOW()),
+(10, 52.50, 158.00, NOW());
+
+-- =====================================================
+-- 5. UserPreferences (1:1)
+-- =====================================================
+INSERT INTO `UserPreferences` (`IdUserPreferences`, `IdUser`, `Goal`, `FreeTimePerDay`) VALUES
+(1,  1,  'Emagrecer e definir o corpo',          40),
+(2,  2,  'Ganhar massa muscular',                60),
+(3,  3,  'Melhorar flexibilidade e equilíbrio',  30),
+(4,  4,  'Melhorar condicionamento físico',      45),
+(5,  5,  'Perder peso e ganhar resistência',     50),
+(6,  6,  'Tonificar o corpo',                    35),
+(7,  7,  'Preparação para corrida',              60),
+(8,  8,  'Voltar à rotina de exercícios',        25),
+(9,  9,  'Hipertrofia e força',                  70),
+(10, 10, 'Manter a saúde e ter mais disposição', 20);
+
+-- =====================================================
+-- 6. UserAvailableDay (N:N User x DaysWeek)
+-- 1=Segunda 2=Terça 3=Quarta 4=Quinta 5=Sexta 6=Sábado 7=Domingo
+-- =====================================================
+INSERT INTO `UserAvailableDay` (`IdUser`, `IdDaysWeek`) VALUES
+(1, 1), (1, 3), (1, 5),
+(2, 1), (2, 2), (2, 4), (2, 5), (2, 6),
+(3, 2), (3, 4), (3, 6),
+(4, 1), (4, 3), (4, 5),
+(5, 1), (5, 2), (5, 3), (5, 5),
+(6, 2), (6, 4),
+(7, 1), (7, 2), (7, 3), (7, 4), (7, 5), (7, 6),
+(8, 3), (8, 6), (8, 7),
+(9, 1), (9, 2), (9, 4), (9, 5),
+(10, 6), (10, 7);
+
+-- =====================================================
+-- 7. UserPreferencesCategory (N:N UserPreferences x ExerciseCategory)
+-- 1=Equilíbrio 2=Flexibilidade 3=Cardio 4=Musculação 5=HIIT 6=Calistenia
+-- =====================================================
+INSERT INTO `UserPreferencesCategory` (`IdUserPreferences`, `IdExerciseCategory`) VALUES
+(1, 3), (1, 4), (1, 5),
+(2, 4), (2, 6),
+(3, 1), (3, 2),
+(4, 3), (4, 5), (4, 6),
+(5, 3), (5, 5),
+(6, 4), (6, 2),
+(7, 3), (7, 2),
+(8, 2), (8, 6),
+(9, 4), (9, 6),
+(10, 1), (10, 2);
+
+-- =====================================================
+-- 8. DailyWorkout (um por usuário, data: 11/11/2026)
+-- TotalDuration = soma dos DurationEstimate dos exercícios;
+-- usuários 6 a 10 não têm exercícios, então ficam com 0.
+-- =====================================================
+INSERT INTO `DailyWorkout` (`IdDailyWorkout`, `IdUser`, `Date`, `TotalDuration`) VALUES
+(1,  1,  '2026-11-11', 35),
+(2,  2,  '2026-11-11', 31),
+(3,  3,  '2026-11-11', 30),
+(4,  4,  '2026-11-11', 34),
+(5,  5,  '2026-11-11', 30),
+(6,  6,  '2026-11-11', 0),
+(7,  7,  '2026-11-11', 0),
+(8,  8,  '2026-11-11', 0),
+(9,  9,  '2026-11-11', 0),
+(10, 10, '2026-11-11', 0);
+
+-- =====================================================
+-- 9. DailyWorkoutExercise (apenas usuários 1 a 5, mínimo 3 exercícios cada)
+-- =====================================================
+INSERT INTO `DailyWorkoutExercise`
+(`IdDailyWorkout`, `IdWorkout`, `ExerciseOrder`, `DurationEstimate`, `Completed`) VALUES
+-- 1. Fernanda (Cardio + Musculação)
+(1,  8, 1, 10, 1),
+(1, 11, 2, 10, 1),
+(1, 12, 3, 10, 1),
+(1, 19, 4,  5, 1),
+-- 2. Vinicius (Musculação + Calistenia)
+(2, 11, 1, 10, 1),
+(2, 17, 2,  8, 1),
+(2, 18, 3,  8, 0),
+(2, 19, 4,  5, 0),
+-- 3. Akemi (Equilíbrio + Flexibilidade)
+(3,  2, 1,  7, 0),
+(3,  4, 2,  8, 0),
+(3,  5, 3,  5, 0),
+(3,  6, 4,  5, 0),
+(3,  7, 5,  5, 0),
+-- 4. Fink (Cardio + HIIT + Calistenia)
+(4,  9, 1, 10, 0),
+(4, 14, 2,  8, 0),
+(4, 15, 3,  8, 0),
+(4, 17, 4,  8, 0),
+-- 5. Gustavo (Cardio + HIIT)
+(5,  8, 1, 10, 0),
+(5, 10, 2,  8, 0),
+(5, 16, 3,  6, 0),
+(5, 14, 4,  6, 0);
+
+SET FOREIGN_KEY_CHECKS = 1;

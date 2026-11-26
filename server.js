@@ -1,4 +1,5 @@
 require('dotenv').config();
+require('dd-trace').init(); // Datadog: deve vir antes de express, mysql2 e demais requires
 
 const express = require('express');
 const app = express();
